@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Дневник смен водителя</title>
+<style>
+  :root {
+    --bg: #0d0f12;
+    --surface: #16191d;
+    --surface-2: #1d2126;
+    --border: rgba(255,255,255,0.07);
+    --text: #f4f2ee;
+    --text-dim: #9aa0a6;
+    --accent: #ffc233;
+    --accent-dim: #8a6a1f;
+    --danger: #ff6b6b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, "SF Pro Text", "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+  }
+  #app {
+    max-width: 420px;
+    margin: 0 auto;
+    min-height: 100vh;
+    position: relative;
+    padding: 24px 16px 100px;
+  }
+
+  header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 20px; }
+  header h1 { font-size: 17px; font-weight: 600; margin: 0; letter-spacing: -0.01em; }
+  header .tag { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em; }
+
+  /* day switcher */
+  #date-row { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; }
+  .nav-btn {
+    width: 36px; height: 36px; border-radius: 10px;
+    background: var(--surface); border: 1px solid var(--border); color: var(--text);
+    font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: transform 0.12s ease, background 0.15s ease;
+  }
+  .nav-btn:hover { background: var(--surface-2); }
+  .nav-btn:active { transform: scale(0.92); }
+  #date-picker {
+    flex: 1; background: var(--surface); border: 1px solid var(--border); color: var(--text);
+    border-radius: 10px; padding: 8px 10px; font-size: 14px; color-scheme: dark;
+  }
+
+  /* weekly chart */
+  #week-chart {
+    display: flex; align-items: flex-end; gap: 6px; height: 64px;
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    padding: 10px 12px; margin-bottom: 18px;
+  }
+  .bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; height: 100%; justify-content: flex-end; gap: 4px; cursor: pointer; }
+  .bar { width: 100%; border-radius: 4px 4px 2px 2px; background: var(--surface-2); min-height: 3px; transition: background 0.15s ease, transform 0.15s ease; }
+  .bar-wrap:hover .bar { background: var(--accent-dim); }
+  .bar-wrap.active .bar { background: var(--accent); }
+  .bar-wrap .lbl { font-size: 9px; color: var(--text-dim); }
+  .bar-wrap.active .lbl { color: var(--accent); font-weight: 600; }
+
+  /* summary */
+  #summary {
+    background: linear-gradient(165deg, var(--surface-2), var(--surface));
+    border: 1px solid var(--border); border-radius: 18px;
+    padding: 20px; margin-bottom: 20px;
+    box-shadow: 0 12px 30px -16px rgba(0,0,0,0.6);
+  }
+  #summary .payout-label { font-size: 12px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em; }
+  #summary .payout-value { font-size: 38px; font-weight: 700; letter-spacing: -0.02em; margin: 2px 0 16px; }
+  .sum-row { display: flex; justify-content: space-between; font-size: 13.5px; padding: 6px 0; color: var(--text-dim); border-top: 1px solid var(--border); }
+  .sum-row span:last-child { color: var(--text); font-variant-numeric: tabular-nums; }
+  .sum-row.neg span:last-child { color: var(--danger); }
+
+  /* trip list */
+  #trips-label { font-size: 12px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em; margin: 0 2px 10px; }
+  .trip {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+    padding: 12px 14px; margin-bottom: 8px; display: flex; align-items: center; gap: 10px;
+  }
+  .trip .icon { width: 30px; height: 30px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; background: var(--surface-2); flex-shrink: 0; }
+  .trip .mid { flex: 1; min-width: 0; }
+  .trip .time { font-size: 13px; color: var(--text); }
+  .trip .method { font-size: 11px; color: var(--text-dim); }
+  .trip .amount { font-weight: 600; font-variant-numeric: tabular-nums; }
+
+  #empty { text-align: center; color: var(--text-dim); font-size: 13px; padding: 30px 0; }
+
+  /* FAB */
+  #fab {
+    position: fixed; bottom: 28px; left: 50%; transform: translateX(calc(-50% + 170px));
+    width: 54px; height: 54px; border-radius: 50%;
+    background: var(--accent); color: #1a1405; border: none;
+    font-size: 26px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 10px 24px -8px rgba(255,194,51,0.55);
+    transition: transform 0.15s ease;
+  }
+  #fab:hover { transform: translateX(calc(-50% + 170px)) scale(1.05); }
+  #fab:active { transform: translateX(calc(-50% + 170px)) scale(0.94); }
+
+  /* bottom sheet */
+  #sheet-backdrop {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+    opacity: 0; pointer-events: none; transition: opacity 0.2s ease;
+  }
+  #sheet-backdrop.open { opacity: 1; pointer-events: auto; }
+  #sheet {
+    position: fixed; left: 0; right: 0; bottom: 0; max-width: 420px; margin: 0 auto;
+    background: var(--surface-2); border-radius: 20px 20px 0 0;
+    padding: 20px 18px 28px; transform: translateY(100%);
+    transition: transform 0.25s cubic-bezier(.2,.8,.2,1);
+    border: 1px solid var(--border); border-bottom: none;
+  }
+  #sheet.open { transform: translateY(0); }
+  #sheet h2 { font-size: 15px; margin: 0 0 16px; }
+  .field { margin-bottom: 12px; }
+  .field label { display: block; font-size: 11px; color: var(--text-dim); margin-bottom: 5px; text-transform: uppercase; letter-spacing: 0.04em; }
+  .field input {
+    width: 100%; background: var(--surface); border: 1px solid var(--border); color: var(--text);
+    border-radius: 10px; padding: 10px 12px; font-size: 14px; color-scheme: dark;
+  }
+  .pay-toggle { display: flex; gap: 8px; }
+  .pay-toggle button {
+    flex: 1; padding: 10px; border-radius: 10px; border: 1px solid var(--border);
+    background: var(--surface); color: var(--text-dim); cursor: pointer; font-size: 13px;
+  }
+  .pay-toggle button.active { background: var(--accent); color: #1a1405; border-color: var(--accent); font-weight: 600; }
+  .hint { font-size: 11px; color: var(--text-dim); margin-top: -4px; margin-bottom: 14px; }
+  #sheet-error { color: var(--danger); font-size: 12.5px; margin-bottom: 10px; display: none; }
+  #submit-trip, #close-sheet {
+    width: 100%; padding: 13px; border-radius: 12px; border: none; font-size: 14px; cursor: pointer;
+  }
+  #submit-trip { background: var(--accent); color: #1a1405; font-weight: 600; margin-bottom: 8px; }
+  #submit-trip:active { transform: scale(0.98); }
+  #close-sheet { background: transparent; color: var(--text-dim); }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <header>
+    <h1>Дневник смен</h1>
+    <span class="tag">arqa driver</span>
+  </header>
+
+  <div id="date-row">
+    <button class="nav-btn" id="prev">‹</button>
+    <input type="date" id="date-picker">
+    <button class="nav-btn" id="next">›</button>
+  </div>
+
+  <div id="week-chart"></div>
+
+  <div id="summary"></div>
+
+  <div id="trips-label">Поездки</div>
+  <div id="trips"></div>
+</div>
+
+<button id="fab" title="Добавить поездку">+</button>
+
+<div id="sheet-backdrop"></div>
+<div id="sheet">
+  <h2>Новая поездка</h2>
+  <div id="sheet-error"></div>
+  <div class="field">
+    <label>Начало</label>
+    <input type="datetime-local" id="f-start">
+  </div>
+  <div class="field">
+    <label>Конец</label>
+    <input type="datetime-local" id="f-end">
+  </div>
+  <div class="field">
+    <label>Сумма, ₸</label>
+    <input type="number" id="f-amount" placeholder="2400">
+  </div>
+  <div class="field">
+    <label>Оплата</label>
+    <div class="pay-toggle">
+      <button type="button" data-pay="cash" class="active">Наличные</button>
+      <button type="button" data-pay="card">Карта</button>
+    </div>
+  </div>
+  <div class="hint">Комиссия 15% рассчитывается автоматически</div>
+  <button id="submit-trip">Добавить поездку</button>
+  <button id="close-sheet">Отмена</button>
+</div>
+
+<script>
+  const picker = document.getElementById("date-picker");
+  let selectedPayment = "cash";
+  picker.value = "2026-10-01";
+
+  async function loadDay(date) {
+    const res = await fetch(`/api/trips?date=${date}`);
+    const data = await res.json();
+    renderSummary(data.summary);
+    renderTrips(data.trips);
+    loadWeek(date);
+  }
+
+  async function loadWeek(date) {
+    const res = await fetch(`/api/weekly?date=${date}`);
+    const data = await res.json();
+    renderWeek(data.days, date);
+  }
+
+  function renderWeek(days, selected) {
+    const max = Math.max(1, ...days.map(d => d.payout));
+    const fmt = new Intl.DateTimeFormat("ru-RU", { weekday: "short" });
+    document.getElementById("week-chart").innerHTML = days.map(d => {
+      const h = Math.max(6, Math.round((d.payout / max) * 56));
+      const active = d.date === selected ? "active" : "";
+      const label = fmt.format(new Date(d.date + "T00:00:00")).replace(".", "");
+      return `
+        <div class="bar-wrap ${active}" data-date="${d.date}">
+          <div class="bar" style="height:${h}px"></div>
+          <div class="lbl">${label}</div>
+        </div>`;
+    }).join("");
+
+    document.querySelectorAll(".bar-wrap").forEach(el => {
+      el.addEventListener("click", () => {
+        picker.value = el.dataset.date;
+        loadDay(picker.value);
+      });
+    });
+  }
+
+  function renderSummary(s) {
+    document.getElementById("summary").innerHTML = `
+      <div class="payout-label">На руки</div>
+      <div class="payout-value">${s.payout.toLocaleString("ru-RU")} ₸</div>
+      <div class="sum-row"><span>Поездок</span><span>${s.count}</span></div>
+      <div class="sum-row"><span>Выручка</span><span>${s.revenue.toLocaleString("ru-RU")} ₸</span></div>
+      <div class="sum-row neg"><span>Комиссия</span><span>-${s.commission.toLocaleString("ru-RU")} ₸</span></div>
+      <div class="sum-row"><span>Наличные / Карта</span><span>${s.cash.toLocaleString("ru-RU")} / ${s.card.toLocaleString("ru-RU")} ₸</span></div>
+    `;
+  }
+
+  function renderTrips(trips) {
+    const list = document.getElementById("trips");
+    if (!trips.length) {
+      list.innerHTML = `<div id="empty">Поездок в этот день нет</div>`;
+      return;
+    }
+    list.innerHTML = trips.slice().sort((a, b) => a.start.localeCompare(b.start)).map(t => `
+      <div class="trip">
+        <div class="icon">${t.payment === "cash" ? "💵" : "💳"}</div>
+        <div class="mid">
+          <div class="time">${t.start.slice(11, 16)}–${t.end.slice(11, 16)}</div>
+          <div class="method">${t.payment === "cash" ? "Наличные" : "Карта"}</div>
+        </div>
+        <div class="amount">${t.amount.toLocaleString("ru-RU")} ₸</div>
+      </div>
+    `).join("");
+  }
+
+  function toDateStr(d) {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  }
+
+  // keeps the wall-clock time the user typed, just labels it with the
+  // browser's own UTC offset instead of converting it (datetime-local
+  // inputs carry no timezone, so a plain toISOString() would shift the
+  // displayed time whenever the browser isn't in the driver's timezone)
+  function toLocalISOString(datetimeLocalValue) {
+    const d = new Date(datetimeLocalValue);
+    const offsetMin = -d.getTimezoneOffset();
+    const sign = offsetMin >= 0 ? "+" : "-";
+    const pad = n => String(Math.abs(n)).padStart(2, "0");
+    const offH = pad(Math.floor(Math.abs(offsetMin) / 60));
+    const offM = pad(Math.abs(offsetMin) % 60);
+    return `${datetimeLocalValue}:00${sign}${offH}:${offM}`;
+  }
+
+  function shiftDate(days) {
+    const d = new Date(picker.value + "T00:00:00");
+    d.setDate(d.getDate() + days);
+    picker.value = toDateStr(d);
+    loadDay(picker.value);
+  }
+
+  document.getElementById("prev").addEventListener("click", () => shiftDate(-1));
+  document.getElementById("next").addEventListener("click", () => shiftDate(1));
+  picker.addEventListener("change", () => loadDay(picker.value));
+
+  // bottom sheet
+  const sheet = document.getElementById("sheet");
+  const backdrop = document.getElementById("sheet-backdrop");
+  const errorBox = document.getElementById("sheet-error");
+
+  function openSheet() {
+    const base = picker.value;
+    document.getElementById("f-start").value = `${base}T08:00`;
+    document.getElementById("f-end").value = `${base}T08:20`;
+    document.getElementById("f-amount").value = "";
+    errorBox.style.display = "none";
+    sheet.classList.add("open");
+    backdrop.classList.add("open");
+  }
+  function closeSheet() {
+    sheet.classList.remove("open");
+    backdrop.classList.remove("open");
+  }
+
+  document.getElementById("fab").addEventListener("click", openSheet);
+  document.getElementById("close-sheet").addEventListener("click", closeSheet);
+  backdrop.addEventListener("click", closeSheet);
+
+  document.querySelectorAll(".pay-toggle button").forEach(btn => {
+    btn.addEventListener("click", () => {
+      document.querySelectorAll(".pay-toggle button").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      selectedPayment = btn.dataset.pay;
+    });
+  });
+
+  document.getElementById("submit-trip").addEventListener("click", async () => {
+    const start = document.getElementById("f-start").value;
+    const end = document.getElementById("f-end").value;
+    const amount = Number(document.getElementById("f-amount").value);
+
+    if (!start || !end || !amount) {
+      errorBox.textContent = "Заполните все поля";
+      errorBox.style.display = "block";
+      return;
+    }
+
+    const trip = {
+      id: crypto.randomUUID(),
+      start: toLocalISOString(start),
+      end: toLocalISOString(end),
+      amount,
+      payment: selectedPayment,
+      commission: Math.round(amount * 0.15)
+    };
+
+    const res = await fetch("/api/trips", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(trip)
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      errorBox.textContent = data.error || "Не удалось добавить поездку";
+      errorBox.style.display = "block";
+      return;
+    }
+
+    closeSheet();
+    loadDay(picker.value);
+  });
+
+  loadDay(picker.value);
+</script>
+
+</body>
+</html>
